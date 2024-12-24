@@ -28,9 +28,12 @@ public class DatabaseTask {
 
     public interface ResultListener {
         void onqQueryResult(List<HusbandryData> result);
+
         void onqInsertResult(List<HusbandryData> result);
 
         void onqInsertFailed();
+
+        void onqDeleteResult(Boolean success);
     }
 
     public DatabaseTask(ResultListener listener) {
@@ -39,8 +42,16 @@ public class DatabaseTask {
         this.mainHandler = new Handler(Looper.getMainLooper()); // 创建主线程处理器
     }
 
-    public void queryTask() {
-        String query = "SELECT * FROM husbandrydata"; // 替换为实际查询语句
+    public void queryTask(String usernameIndex, boolean getAllData) {
+        String query = "";
+        if (getAllData) {
+            query = "SELECT * FROM `husbandrydata`";
+        } else {
+            query = String.format("SELECT * FROM `husbandrydata` WHERE `username` = '%s'", usernameIndex); // 替换为实际查询语句
+        }
+
+
+        String finalQuery = query;
         executorService.execute(() -> {
             List<HusbandryData> results = new ArrayList<>();
 
@@ -50,7 +61,7 @@ public class DatabaseTask {
                 // 建立连接
                 Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
                 Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery(query);
+                ResultSet resultSet = statement.executeQuery(finalQuery);
 
                 // 处理结果集
                 while (resultSet.next()) {
@@ -65,19 +76,12 @@ public class DatabaseTask {
                     String heartbeat = resultSet.getString("heartbeat");
                     String bloodPressure = resultSet.getString("bloodpressure");
                     String userName = resultSet.getString("username");
+                    String enterpriseAdvice = resultSet.getString("enterpriseadvice");
 
-                    if (heartbeat == null || heartbeat.isEmpty()) {
-                        heartbeat = "null"; // 设置默认值
-                    }
-
-
-                    if (bloodPressure == null || bloodPressure.isEmpty()) {
-                        bloodPressure = "null"; // 设置默认值
-                    }
 
                     HusbandryData data = new HusbandryData(index, age, weight, feedType, foodIntake,
                             excretionRate, healthStatus, uri, heartbeat,
-                            bloodPressure, userName);
+                            bloodPressure, userName, enterpriseAdvice);
                     Log.e("~~~~", data.toString());
 
                     results.add(data);
@@ -95,7 +99,7 @@ public class DatabaseTask {
                 statement.close();
                 connection.close();
             } catch (Exception e) {
-                Log.i("~~~~",e.toString());
+                Log.i("~~~~", e.toString());
                 e.printStackTrace();
             }
 
@@ -110,7 +114,7 @@ public class DatabaseTask {
                 Class.forName("com.mysql.jdbc.Driver");
                 // 建立连接
                 Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
-                String insertQuery = "INSERT INTO `husbandrydata` (`index`, `age`, `weight`, `feedtype`, `foodintake`, `excretionrate`, `healthstatus`, `uri`, `heartbeat`, `bloodpressure`, `username` )  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?)";
+                String insertQuery = "INSERT INTO `husbandrydata` (`index`, `age`, `weight`, `feedtype`, `foodintake`, `excretionrate`, `healthstatus`, `uri`, `heartbeat`, `bloodpressure`, `username` , `enterpriseadvice`)  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 try (PreparedStatement preparedStatement = connection.prepareStatement(insertQuery)) {
                     preparedStatement.setString(1, data.getIndex());
@@ -124,10 +128,11 @@ public class DatabaseTask {
                     preparedStatement.setString(9, data.getHeartbeat());
                     preparedStatement.setString(10, data.getBloodPressure());
                     preparedStatement.setString(11, data.getUserName());
+                    preparedStatement.setString(12, data.getEnterpriseAdvice());
 
                     // 执行插入操作
                     preparedStatement.executeUpdate();
-                }catch (Exception e){
+                } catch (Exception e) {
                     listener.onqInsertFailed();
                 }
 
@@ -138,6 +143,75 @@ public class DatabaseTask {
             }
         });
     }
+
+
+    public void deleteData(String index) {
+        executorService.execute(() -> {
+            boolean success = false;
+            try {
+                Class.forName("com.mysql.jdbc.Driver");
+                Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+                String deleteQuery = "DELETE FROM `husbandrydata` WHERE `index` = ?";
+
+                try (PreparedStatement preparedStatement = connection.prepareStatement(deleteQuery)) {
+                    preparedStatement.setString(1, index);
+                    int rowsAffected = preparedStatement.executeUpdate();
+                    success = rowsAffected > 0; // 判断是否删除成功
+                } catch (Exception e) {
+                    Log.e("DatabaseTask", "Delete failed: " + e.getMessage());
+                }
+
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // 在主线程中回调删除结果
+            boolean finalSuccess = success;
+            mainHandler.post(() -> {
+                if (listener != null) {
+                    listener.onqDeleteResult(finalSuccess);
+                }
+            });
+        });
+    }
+
+    public void modifyEnterpriseAdvice(String index, String dataToModify) {
+        executorService.execute(() -> {
+            boolean success = false;
+            try {
+                Class.forName("com.mysql.jdbc.Driver");
+                Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+
+                // 使用字符串拼接构造 SQL 语句，确保 column 是安全的
+                String updateQuery = "UPDATE `husbandrydata` SET `enterpriseadvice` = ? WHERE `index` = ?";
+
+                try (PreparedStatement preparedStatement = connection.prepareStatement(updateQuery)) {
+                    // 设置要修改的值
+                    preparedStatement.setString(1, dataToModify);
+                    preparedStatement.setString(2, index);
+
+                    int rowsAffected = preparedStatement.executeUpdate();
+                    success = rowsAffected > 0; // 判断更新是否成功
+                } catch (Exception e) {
+                    Log.e("DatabaseTask", "Update failed: " + e.getMessage());
+                }
+
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // 在主线程中回调更新结果
+            boolean finalSuccess = success;
+            mainHandler.post(() -> {
+                if (listener != null) {
+                    listener.onqDeleteResult(finalSuccess); // 可以改为其他回调方法
+                }
+            });
+        });
+    }
+
     // 可选择在适当时机关闭 ExecutorService
     public void shutdown() {
         executorService.shutdown();

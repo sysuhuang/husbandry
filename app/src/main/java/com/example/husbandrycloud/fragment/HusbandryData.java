@@ -16,10 +16,20 @@ public class HusbandryData implements Serializable {
 
     private String userName;
 
+    private String enterpriseAdvice;
+
     // 更新构造函数
     public HusbandryData(String index, String age, String weight, String feedType, String foodIntake,
                          String excretionRate, String healthStatus, String uri, String heartbeat,
                          String bloodPressure, String userName) {
+        this(index, age, weight, feedType, foodIntake,
+                excretionRate, healthStatus, uri, heartbeat,
+                bloodPressure, userName, "");
+    }
+
+    public HusbandryData(String index, String age, String weight, String feedType, String foodIntake,
+                         String excretionRate, String healthStatus, String uri, String heartbeat,
+                         String bloodPressure, String userName, String enterpriseAdvice) {
         this.index = index;
         this.age = age;
         this.weight = weight;
@@ -31,6 +41,7 @@ public class HusbandryData implements Serializable {
         this.heartbeat = heartbeat;
         this.bloodPressure = bloodPressure;
         this.userName = userName;
+        this.enterpriseAdvice = enterpriseAdvice;
     }
 
     public String getIndex() {
@@ -92,5 +103,9 @@ public class HusbandryData implements Serializable {
                 ", bloodPressure='" + bloodPressure + '\'' +
                 ", userName='" + userName + '\'' +
                 '}';
+    }
+
+    public String getEnterpriseAdvice() {
+        return enterpriseAdvice;
     }
 }

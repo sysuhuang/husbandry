@@ -7,6 +7,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -15,10 +16,12 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.husbandrycloud.R;
 import com.example.husbandrycloud.util.DatabaseTask;
+import com.example.husbandrycloud.util.SharedPreferencesManager;
 
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class UploadedDataListFragment extends Fragment {
 
@@ -27,6 +30,7 @@ public class UploadedDataListFragment extends Fragment {
     private List<HusbandryData> dataList;
 
     private OnBackPressedListener backPressedListener;
+
 
     public interface OnBackPressedListener {
         void onBackPressed();
@@ -43,22 +47,28 @@ public class UploadedDataListFragment extends Fragment {
         Button backButton = view.findViewById(R.id.back_button);
         recyclerView = view.findViewById(R.id.data_list_view);
         dataList = new ArrayList<>();
-        adapter = new HusbandryDataAdapter(dataList, getActivity());
+        adapter = new HusbandryDataAdapter(dataList, getActivity(), SharedPreferencesManager.getUserRole(getActivity()));
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter(adapter);
+        if (Objects.equals(SharedPreferencesManager.getUserRole(getActivity()), "merchant")) {
+            fetchDataFromDatabase(false); // 调用数据库任务以获取数据
+        } else if (Objects.equals(SharedPreferencesManager.getUserRole(getActivity()), "enterprise")) {
+            fetchDataFromDatabase(true);
+        }
 
-        fetchDataFromDatabase(); // 调用数据库任务以获取数据
 
         backButton.setOnClickListener(v -> {
             if (backPressedListener != null) {
                 backPressedListener.onBackPressed();
             }
+
         });
 
         return view;
     }
 
-    private void fetchDataFromDatabase() {
+
+    private void fetchDataFromDatabase(boolean getAllData) {
 
 
         DatabaseTask databaseTask = new DatabaseTask(new DatabaseTask.ResultListener() {
@@ -85,8 +95,13 @@ public class UploadedDataListFragment extends Fragment {
             public void onqInsertFailed() {
 
             }
+
+            @Override
+            public void onqDeleteResult(Boolean success) {
+
+            }
         });
 
-        databaseTask.queryTask(); // 执行数据库任务
+        databaseTask.queryTask(SharedPreferencesManager.getUsername(getActivity()), getAllData); // 执行数据库任务
     }
 }

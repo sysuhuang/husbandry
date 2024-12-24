@@ -10,12 +10,15 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -60,6 +63,26 @@ public class RoleSelectionActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_role_selection);
+
+        Toolbar toolbar = findViewById(R.id.role_toolbar);
+        setSupportActionBar(toolbar);
+
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
+        // 创建并设置 TextView 作为标题
+        TextView toolbarTitle = new TextView(this);
+        toolbarTitle.setText("畜牧云登录");
+        toolbarTitle.setTextColor(getResources().getColor(android.R.color.white)); // 设置文本颜色
+        toolbarTitle.setTextSize(20); // 设置文本大小
+
+        // 设置 TextView 居中显示
+        Toolbar.LayoutParams layoutParams = new Toolbar.LayoutParams(
+                Toolbar.LayoutParams.WRAP_CONTENT,
+                Toolbar.LayoutParams.WRAP_CONTENT);
+        layoutParams.gravity = Gravity.CENTER; // 居中
+        toolbarTitle.setLayoutParams(layoutParams);
+
+        // 将 TextView 添加到 Toolbar
+        toolbar.addView(toolbarTitle);
 
         if(!hasStoragePermissions(this)){
             requestStoragePermissions(this);

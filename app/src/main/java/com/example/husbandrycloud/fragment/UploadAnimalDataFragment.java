@@ -8,11 +8,13 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -36,6 +38,8 @@ public class UploadAnimalDataFragment extends Fragment {
 
     private EditText productIdEditText, ageEditText, weightEditText, feedTypeEditText, foodIntakeEditText, excretionEditText, healthStatusEditText, heartbeatEditText, bloodPressureEditText;
     private Uri imageUri;
+
+    private TextView selectedImageText; // 添加引用
     private OnDataUploadedListener listener;
     private OnBackPressedListener backPressedListener;
 
@@ -61,7 +65,7 @@ public class UploadAnimalDataFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_upload_animal_data, container, false);
-
+        Log.i("huangLog", "onCreateView!!");
         Button backButton = view.findViewById(R.id.back_button);
         ageEditText = view.findViewById(R.id.age_edit_text);
         weightEditText = view.findViewById(R.id.weight_edit_text);
@@ -72,6 +76,8 @@ public class UploadAnimalDataFragment extends Fragment {
         heartbeatEditText = view.findViewById(R.id.heartbeat_edit_text);
         bloodPressureEditText = view.findViewById(R.id.blood_pressure_edit_text);
         productIdEditText = view.findViewById(R.id.index_edit_index);
+
+        selectedImageText = view.findViewById(R.id.selected_image_text); // 初始化 TextView
 
         Button uploadPhotoButton = view.findViewById(R.id.upload_photo_button);
         Button submitButton = view.findViewById(R.id.submit_button);
@@ -84,10 +90,14 @@ public class UploadAnimalDataFragment extends Fragment {
 
         uploadPhotoButton.setOnClickListener(v -> openGallery());
         submitButton.setOnClickListener(v -> submitData());
-
         return view;
     }
 
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        Log.i("huangLog", "onViewCreated!!");
+    }
 
     private void openGallery() {
         Intent intent = new Intent(Intent.ACTION_PICK);
@@ -100,11 +110,15 @@ public class UploadAnimalDataFragment extends Fragment {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK && data != null) {
             imageUri = data.getData();
-            //uploadImage();
+            String fileName = getFileNameFromUri(imageUri); // 获取文件名
+            selectedImageText.setText(fileName + " 已选"); // 设置文本
         }
     }
 
+
     private void uploadImage() {
+        long threadId2 = Thread.currentThread().getId();
+        Log.d("ThreadInfo", "fragment ID: " + threadId2);
         if (imageUri != null) {
             String bucketName = Config.OSS_BUCKET_NAME;
 
@@ -142,7 +156,7 @@ public class UploadAnimalDataFragment extends Fragment {
                     String bloodPressure = bloodPressureEditText.getText().toString();
                     String productId = productIdEditText.getText().toString();
                     HusbandryData data = new HusbandryData(productId, age, weight, feedType, foodIntake, excretion, healthStatus, objectName, heartbeat, bloodPressure, SharedPreferencesManager.getUsername(getActivity()));
-
+                    Log.i("huangLog",data.toString());
                     DatabaseTask databaseTask = new DatabaseTask(new DatabaseTask.ResultListener() {
                         @Override
                         public void onqQueryResult(List<HusbandryData> result) {
@@ -156,19 +170,29 @@ public class UploadAnimalDataFragment extends Fragment {
 
                         @Override
                         public void onqInsertFailed() {
-                            getActivity().runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    Toast.makeText(getActivity(), "产品编号重复,上传失败!", Toast.LENGTH_SHORT).show();
-                                }
-                            });
+                            getActivity().runOnUiThread(() -> Toast.makeText(getActivity(), "产品编号重复,上传失败!", Toast.LENGTH_SHORT).show());
+                        }
+
+                        @Override
+                        public void onqDeleteResult(Boolean success) {
+
                         }
                     });
 
                     databaseTask.insertData(data);
 
+                    long threadId1 = Thread.currentThread().getId();
+                    Log.d("ThreadInfo", "UploadFile ID: " + threadId1);
+
                     // 清空输入
-                    clearInputs();
+                    getActivity().runOnUiThread(() -> {
+                                clearInputs();
+                                long threadId = Thread.currentThread().getId();
+                                Log.d("ThreadInfo", "Ui Thread ID: " + threadId);
+                            }
+
+                    );
+
                 }
 
                 @Override
@@ -223,10 +247,14 @@ public class UploadAnimalDataFragment extends Fragment {
             return;
         }
 
+        if (productIdEditText.getText().toString().isEmpty()) {
+            Toast.makeText(getContext(), "请设置产品编号", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         uploadImage();
 
 
-        //Toast.makeText(getContext(), "数据提交成功", Toast.LENGTH_SHORT).show();
     }
 
     private void clearInputs() {
@@ -239,5 +267,6 @@ public class UploadAnimalDataFragment extends Fragment {
         healthStatusEditText.setText("");
         heartbeatEditText.setText("");
         bloodPressureEditText.setText("");
+        selectedImageText.setText(""); // 设置文本
     }
 }

@@ -13,6 +13,8 @@ import com.alibaba.sdk.android.oss.internal.OSSAsyncTask;
 import com.alibaba.sdk.android.oss.model.CannedAccessControlList;
 import com.alibaba.sdk.android.oss.model.CreateBucketRequest;
 import com.alibaba.sdk.android.oss.model.CreateBucketResult;
+import com.alibaba.sdk.android.oss.model.DeleteObjectRequest;
+import com.alibaba.sdk.android.oss.model.DeleteObjectResult;
 import com.alibaba.sdk.android.oss.model.GetObjectRequest;
 import com.alibaba.sdk.android.oss.model.GetObjectResult;
 import com.alibaba.sdk.android.oss.model.PutObjectRequest;
@@ -54,6 +56,8 @@ public class OSSClientManager {
         // 构造上传请求
         PutObjectRequest put = new PutObjectRequest(bucketName, objectName, filePath);
 
+        long threadId2 = Thread.currentThread().getId();
+        Log.d("ThreadInfo", "class uploadFile ID: " + threadId2);
         // 设置进度回调
         put.setProgressCallback(new OSSProgressCallback<PutObjectRequest>() {
             @Override
@@ -61,6 +65,8 @@ public class OSSClientManager {
                 //Log.d("PutObject", "currentSize: " + currentSize + " totalSize: " + totalSize);
             }
         });
+
+
 
         // 异步上传
         OSSAsyncTask task = getInstance(context).asyncPutObject(put, new OSSCompletedCallback<PutObjectRequest, PutObjectResult>() {
@@ -101,7 +107,7 @@ public class OSSClientManager {
         });
 
         // 发起异步请求
-        OSSAsyncTask task =  getInstance(context).asyncGetObject(get, new OSSCompletedCallback<GetObjectRequest, GetObjectResult>() {
+        OSSAsyncTask task = getInstance(context).asyncGetObject(get, new OSSCompletedCallback<GetObjectRequest, GetObjectResult>() {
             @Override
             public void onSuccess(GetObjectRequest request, GetObjectResult result) {
                 // 请求成功
@@ -127,6 +133,33 @@ public class OSSClientManager {
                 }
                 if (serviceException != null) {
                     // 服务异常
+                    Log.e("ErrorCode", serviceException.getErrorCode());
+                    Log.e("RequestId", serviceException.getRequestId());
+                    Log.e("HostId", serviceException.getHostId());
+                    Log.e("RawMessage", serviceException.getRawMessage());
+                }
+            }
+        });
+    }
+
+    public static void deleteFileFromOSS(Context context, String bucketName, String objectPath) {
+        DeleteObjectRequest delete = new DeleteObjectRequest(bucketName, objectPath);
+
+        OSSAsyncTask deleteTask = getInstance(context).asyncDeleteObject(delete, new OSSCompletedCallback<DeleteObjectRequest, DeleteObjectResult>() {
+            @Override
+            public void onSuccess(DeleteObjectRequest request, DeleteObjectResult result) {
+                Log.d("asyncDeleteObject", "success!");
+            }
+
+            @Override
+            public void onFailure(DeleteObjectRequest request, ClientException clientExcepion, ServiceException serviceException) {
+                // 请求异常。
+                if (clientExcepion != null) {
+                    // 客户端异常，例如网络异常等。
+                    clientExcepion.printStackTrace();
+                }
+                if (serviceException != null) {
+                    // 服务端异常。
                     Log.e("ErrorCode", serviceException.getErrorCode());
                     Log.e("RequestId", serviceException.getRequestId());
                     Log.e("HostId", serviceException.getHostId());
